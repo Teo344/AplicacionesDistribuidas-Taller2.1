@@ -6,16 +6,17 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import ec.edu.espe.zonas.entidades.Espacio;
+import ec.edu.espe.zonas.entidades.EspacioEstado;
 
 public interface EspacioRepositorio extends JpaRepository<Espacio,UUID> {
 
     boolean existsByCodigo(String codigo);
 
-    List<Espacio> findByZona(UUID idZona);
+    List<Espacio> findByZonaId(UUID idZona);
 
-    List<Espacio> findByZonaAndEstado(UUID idZona, int estado);
+    List<Espacio> findByZonaIdAndEstado(UUID idZona, EspacioEstado estado);
     
-    List<Espacio> findByEstado(boolean estado);
+    List<Espacio> findByEstado(EspacioEstado estado);
 
     
 }

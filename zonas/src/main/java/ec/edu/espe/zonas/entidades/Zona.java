@@ -59,7 +59,8 @@ public class Zona {
     @Builder.Default
     private List<Espacio> espacios = new ArrayList<>();
 
-
+    @Column
+    private int capacidad;
 
     @Column
     private LocalDateTime fechaCreacion;

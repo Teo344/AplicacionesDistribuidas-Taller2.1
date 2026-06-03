@@ -12,9 +12,9 @@ import org.springframework.web.server.ResponseStatusException;
 import ec.edu.espe.zonas.dtos.ZonaRequestDto;
 import ec.edu.espe.zonas.dtos.ZonaRespondeDto;
 import ec.edu.espe.zonas.entidades.Zona;
-import ec.edu.espe.zonas.mappers.ZonaMapper;
 import ec.edu.espe.zonas.repositories.ZonaRepositorio;
 import ec.edu.espe.zonas.services.ZonaServicio;
+import ec.edu.espe.zonas.utils.ZonaMapper;
 
 
 
@@ -57,6 +57,7 @@ public class ZonaServicioImpl implements ZonaServicio {
         objZona.setCodigo(zonaCodigoGenerador.generar(request.getTipo()));
         objZona.setDescripcion(request.getDescripcion());
         objZona.setTipo(request.getTipo());
+        objZona.setCapacidad(request.getCapacidad());
 
         repositorioZona.save(objZona);
 

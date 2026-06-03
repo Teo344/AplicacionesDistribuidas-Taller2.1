@@ -24,6 +24,7 @@ public class ZonaServicioPruebaMain {
                     .nombre("Zona Norte")
                     .descripcion("Zona regulada del bloque norte")
                     .tipo(TipoZona.VIP)
+                    .capacidad(50)
                     .build();
 
             ZonaRespondeDto respuesta = servicio.crearZona(request);
@@ -33,6 +34,7 @@ public class ZonaServicioPruebaMain {
             System.out.println("Nombre: " + respuesta.getNombre());
             System.out.println("Codigo: " + respuesta.getCodigo());
             System.out.println("Tipo: " + respuesta.getTipo());
+            System.out.println("Capacidad: " + respuesta.getCapacidad());
         }
     }
 }

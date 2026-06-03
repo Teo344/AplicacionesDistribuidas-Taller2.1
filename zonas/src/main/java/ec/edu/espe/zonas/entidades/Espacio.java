@@ -46,7 +46,11 @@ public class Espacio {
     private TipoEspacio tipo;
 
     @Column(nullable = false)
-    private boolean estado;
+    private boolean activo;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private EspacioEstado estado;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_zona")
