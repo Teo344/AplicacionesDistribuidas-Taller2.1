@@ -49,6 +49,13 @@ public class EspacioServicioImpl implements EspacioServicio {
             .orElseThrow(() -> new ResponseStatusException(
                 HttpStatus.NOT_FOUND,
                 "Zona no encontrada con id: " + dto.getIdZona()));
+
+        long espaciosRegistrados = repositorio.countByZonaId(dto.getIdZona());
+        if (espaciosRegistrados >= objZona.getCapacidad()) {
+            throw new ResponseStatusException(
+                HttpStatus.CONFLICT,
+                "La zona ya alcanzo su capacidad maxima de espacios");
+        }
         
         Espacio nuevEspacio = mapper.toEntity(dto);
         nuevEspacio.setZona(objZona);
@@ -64,15 +71,63 @@ public class EspacioServicioImpl implements EspacioServicio {
     }
 
     @Override
-    public EspacioRespondeDto actualizarEspacio(UUID idEspacio, EspacioRespondeDto dto) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'actualizarEspacio'");
+    @Transactional
+    public EspacioRespondeDto actualizarEspacio(UUID idEspacio, EspacioRequestDto dto) {
+        Espacio objEspacio = repositorio.findById(idEspacio)
+            .orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "Espacio no encontrado con id: " + idEspacio));
+
+        if (repositorio.existsByCodigoAndIdNot(dto.getCodigo(), idEspacio)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "YA EXISTE EL CODIGO DEL ESPACIO");
+        }
+
+        Zona objZona = repositorioZona.findById(dto.getIdZona())
+            .orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "Zona no encontrada con id: " + dto.getIdZona()));
+
+        if (!objEspacio.getZona().getId().equals(dto.getIdZona())) {
+            long espaciosRegistrados = repositorio.countByZonaId(dto.getIdZona());
+            if (espaciosRegistrados >= objZona.getCapacidad()) {
+                throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "La zona destino ya alcanzo su capacidad maxima de espacios");
+            }
+        }
+
+        objEspacio.setCodigo(dto.getCodigo());
+        objEspacio.setDescripcion(dto.getDescripcion());
+        objEspacio.setTipo(dto.getTipo());
+        objEspacio.setZona(objZona);
+
+        if (dto.getEstado() != null) {
+            objEspacio.setEstado(dto.getEstado());
+        }
+
+        Espacio espacioSaved = repositorio.save(objEspacio);
+
+        return mapper.toResponseDto(espacioSaved);
     }
 
     @Override
+    @Transactional
     public void eliminarEspacio(UUID idEspacio) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'eliminarEspacio'");
+        Espacio objEspacio = repositorio.findById(idEspacio)
+            .orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "Espacio no encontrado con id: " + idEspacio));
+
+        if (!objEspacio.isActivo()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "El espacio ya se encuentra inactivo");
+        }
+
+        if (objEspacio.getEstado() == EspacioEstado.OCUPADO) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "No se puede eliminar un espacio ocupado");
+        }
+
+        objEspacio.setActivo(false);
+        repositorio.save(objEspacio);
     }
 
     @Override
@@ -97,15 +152,29 @@ public class EspacioServicioImpl implements EspacioServicio {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<EspacioRespondeDto> obtenerEspacioPorEstado(EspacioEstado estado) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'obtenerEspacioPorEstado'");
+        return repositorio.findByEstado(estado).stream()
+            .map(mapper::toResponseDto)
+            .collect(Collectors.toList());
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<EspacioRespondeDto> obtenerEspacioPorZona(UUID idZona, EspacioEstado estado) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'obtenerEspacioPorZona'");
+        if (!repositorioZona.existsById(idZona)) {
+            throw new ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "Zona no encontrada con id: " + idZona);
+        }
+
+        List<Espacio> espacios = estado == null
+            ? repositorio.findByZonaId(idZona)
+            : repositorio.findByZonaIdAndEstado(idZona, estado);
+
+        return espacios.stream()
+            .map(mapper::toResponseDto)
+            .collect(Collectors.toList());
     }
     
 }

@@ -13,7 +13,7 @@ public interface EspacioServicio {
 
     EspacioRespondeDto crearEspacio(EspacioRequestDto dto);
     
-    EspacioRespondeDto actualizarEspacio(UUID idEspacio, EspacioRespondeDto dto);
+    EspacioRespondeDto actualizarEspacio(UUID idEspacio, EspacioRequestDto dto);
 
     void eliminarEspacio(UUID idEspacio);
 

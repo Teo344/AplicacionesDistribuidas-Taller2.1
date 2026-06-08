@@ -12,6 +12,12 @@ public interface EspacioRepositorio extends JpaRepository<Espacio,UUID> {
 
     boolean existsByCodigo(String codigo);
 
+    boolean existsByCodigoAndIdNot(String codigo, UUID id);
+
+    boolean existsByZonaIdAndEstado(UUID idZona, EspacioEstado estado);
+
+    long countByZonaId(UUID idZona);
+
     List<Espacio> findByZonaId(UUID idZona);
 
     List<Espacio> findByZonaIdAndEstado(UUID idZona, EspacioEstado estado);
