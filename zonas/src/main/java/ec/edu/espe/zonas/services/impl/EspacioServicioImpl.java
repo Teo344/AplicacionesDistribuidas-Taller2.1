@@ -1,5 +1,6 @@
 package ec.edu.espe.zonas.services.impl;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -33,7 +34,7 @@ public class EspacioServicioImpl implements EspacioServicio {
     @Override
     @Transactional(readOnly = true)
     public List<EspacioRespondeDto> obtenerEspacio() {
-        return repositorio.findAll().stream()
+        return repositorio.findByEliminadoFalse().stream()
             .map(mapper::toResponseDto)
             .collect(Collectors.toList());
     }
@@ -50,7 +51,13 @@ public class EspacioServicioImpl implements EspacioServicio {
                 HttpStatus.NOT_FOUND,
                 "Zona no encontrada con id: " + dto.getIdZona()));
 
-        long espaciosRegistrados = repositorio.countByZonaId(dto.getIdZona());
+        if (objZona.getEstado() == 0) {
+            throw new ResponseStatusException(
+                HttpStatus.CONFLICT,
+                "No se puede crear un espacio en una zona inactiva");
+        }
+
+        long espaciosRegistrados = repositorio.countByZonaIdAndEliminadoFalse(dto.getIdZona());
         if (espaciosRegistrados >= objZona.getCapacidad()) {
             throw new ResponseStatusException(
                 HttpStatus.CONFLICT,
@@ -60,6 +67,8 @@ public class EspacioServicioImpl implements EspacioServicio {
         Espacio nuevEspacio = mapper.toEntity(dto);
         nuevEspacio.setZona(objZona);
         nuevEspacio.setActivo(true);
+        nuevEspacio.setEliminado(false);
+        nuevEspacio.setFechaCreacion(LocalDateTime.now());
 
         if (nuevEspacio.getEstado() == null) {
             nuevEspacio.setEstado(EspacioEstado.DISPONIBLE);
@@ -78,6 +87,8 @@ public class EspacioServicioImpl implements EspacioServicio {
                 HttpStatus.NOT_FOUND,
                 "Espacio no encontrado con id: " + idEspacio));
 
+        validarEspacioNoEliminado(objEspacio);
+
         if (repositorio.existsByCodigoAndIdNot(dto.getCodigo(), idEspacio)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "YA EXISTE EL CODIGO DEL ESPACIO");
         }
@@ -88,7 +99,7 @@ public class EspacioServicioImpl implements EspacioServicio {
                 "Zona no encontrada con id: " + dto.getIdZona()));
 
         if (!objEspacio.getZona().getId().equals(dto.getIdZona())) {
-            long espaciosRegistrados = repositorio.countByZonaId(dto.getIdZona());
+            long espaciosRegistrados = repositorio.countByZonaIdAndEliminadoFalse(dto.getIdZona());
             if (espaciosRegistrados >= objZona.getCapacidad()) {
                 throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
@@ -105,6 +116,8 @@ public class EspacioServicioImpl implements EspacioServicio {
             objEspacio.setEstado(dto.getEstado());
         }
 
+        objEspacio.setFechaModificacion(LocalDateTime.now());
+
         Espacio espacioSaved = repositorio.save(objEspacio);
 
         return mapper.toResponseDto(espacioSaved);
@@ -118,15 +131,17 @@ public class EspacioServicioImpl implements EspacioServicio {
                 HttpStatus.NOT_FOUND,
                 "Espacio no encontrado con id: " + idEspacio));
 
-        if (!objEspacio.isActivo()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "El espacio ya se encuentra inactivo");
+        if (objEspacio.isEliminado()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "El espacio ya se encuentra eliminado");
         }
 
         if (objEspacio.getEstado() == EspacioEstado.OCUPADO) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "No se puede eliminar un espacio ocupado");
         }
 
+        objEspacio.setEliminado(true);
         objEspacio.setActivo(false);
+        objEspacio.setFechaModificacion(LocalDateTime.now());
         repositorio.save(objEspacio);
     }
 
@@ -138,6 +153,12 @@ public class EspacioServicioImpl implements EspacioServicio {
                 HttpStatus.NOT_FOUND,
                 "Espacio no encontrado con id: " + idEspacio));
 
+        validarEspacioNoEliminado(objEspacio);
+
+        if (!objEspacio.isActivo()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "El espacio se encuentra inactivo");
+        }
+
         if (objEspacio.getEstado() == estado) {
             throw new ResponseStatusException(
                 HttpStatus.CONFLICT,
@@ -145,6 +166,7 @@ public class EspacioServicioImpl implements EspacioServicio {
         }
 
         objEspacio.setEstado(estado);
+        objEspacio.setFechaModificacion(LocalDateTime.now());
 
         Espacio espacioSaved = repositorio.save(objEspacio);
 
@@ -154,7 +176,7 @@ public class EspacioServicioImpl implements EspacioServicio {
     @Override
     @Transactional(readOnly = true)
     public List<EspacioRespondeDto> obtenerEspacioPorEstado(EspacioEstado estado) {
-        return repositorio.findByEstado(estado).stream()
+        return repositorio.findByEstadoAndEliminadoFalse(estado).stream()
             .map(mapper::toResponseDto)
             .collect(Collectors.toList());
     }
@@ -169,12 +191,18 @@ public class EspacioServicioImpl implements EspacioServicio {
         }
 
         List<Espacio> espacios = estado == null
-            ? repositorio.findByZonaId(idZona)
-            : repositorio.findByZonaIdAndEstado(idZona, estado);
+            ? repositorio.findByZonaIdAndEliminadoFalse(idZona)
+            : repositorio.findByZonaIdAndEstadoAndEliminadoFalse(idZona, estado);
 
         return espacios.stream()
             .map(mapper::toResponseDto)
             .collect(Collectors.toList());
+    }
+
+    private void validarEspacioNoEliminado(Espacio objEspacio) {
+        if (objEspacio.isEliminado()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "El espacio se encuentra eliminado");
+        }
     }
     
 }

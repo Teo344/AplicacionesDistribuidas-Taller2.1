@@ -16,13 +16,25 @@ public interface EspacioRepositorio extends JpaRepository<Espacio,UUID> {
 
     boolean existsByZonaIdAndEstado(UUID idZona, EspacioEstado estado);
 
+    boolean existsByZonaIdAndEstadoAndEliminadoFalse(UUID idZona, EspacioEstado estado);
+
     long countByZonaId(UUID idZona);
+
+    long countByZonaIdAndEliminadoFalse(UUID idZona);
+
+    List<Espacio> findByEliminadoFalse();
 
     List<Espacio> findByZonaId(UUID idZona);
 
+    List<Espacio> findByZonaIdAndEliminadoFalse(UUID idZona);
+
     List<Espacio> findByZonaIdAndEstado(UUID idZona, EspacioEstado estado);
+
+    List<Espacio> findByZonaIdAndEstadoAndEliminadoFalse(UUID idZona, EspacioEstado estado);
     
     List<Espacio> findByEstado(EspacioEstado estado);
+
+    List<Espacio> findByEstadoAndEliminadoFalse(EspacioEstado estado);
 
     
 }

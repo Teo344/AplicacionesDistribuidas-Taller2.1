@@ -48,6 +48,9 @@ public class Espacio {
     @Column(nullable = false)
     private boolean activo;
 
+    @Column(nullable = false)
+    private boolean eliminado;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private EspacioEstado estado;

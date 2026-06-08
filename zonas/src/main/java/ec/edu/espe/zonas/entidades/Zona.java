@@ -59,7 +59,7 @@ public class Zona {
     @Builder.Default
     private List<Espacio> espacios = new ArrayList<>();
 
-    @Column
+    @Column(nullable = false)
     private int capacidad;
 
     @Column

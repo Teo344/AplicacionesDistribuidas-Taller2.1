@@ -66,6 +66,8 @@ public class ZonaServicioImpl implements ZonaServicio {
         objZona.setDescripcion(request.getDescripcion());
         objZona.setTipo(request.getTipo());
         objZona.setCapacidad(request.getCapacidad());
+        objZona.setEstado(1);
+        objZona.setFechaCreacion(LocalDateTime.now());
 
         repositorioZona.save(objZona);
 
@@ -82,7 +84,7 @@ public class ZonaServicioImpl implements ZonaServicio {
                 HttpStatus.NOT_FOUND,
                 "Zona no encontrada con id: " + idZona));
 
-        long espaciosRegistrados = repositorioEspacio.countByZonaId(idZona);
+        long espaciosRegistrados = repositorioEspacio.countByZonaIdAndEliminadoFalse(idZona);
         if (request.getCapacidad() < espaciosRegistrados) {
             throw new ResponseStatusException(
                 HttpStatus.CONFLICT,
@@ -128,7 +130,7 @@ public class ZonaServicioImpl implements ZonaServicio {
     }
 
     private void activarZonaConEspacios(Zona objZona) {
-        List<Espacio> espacios = repositorioEspacio.findByZonaId(objZona.getId());
+        List<Espacio> espacios = repositorioEspacio.findByZonaIdAndEliminadoFalse(objZona.getId());
 
         espacios.forEach(espacio -> {
             espacio.setActivo(true);
@@ -141,7 +143,7 @@ public class ZonaServicioImpl implements ZonaServicio {
     }
 
     private void desactivarZona(Zona objZona) {
-        boolean existenEspaciosOcupados = repositorioEspacio.existsByZonaIdAndEstado(
+        boolean existenEspaciosOcupados = repositorioEspacio.existsByZonaIdAndEstadoAndEliminadoFalse(
             objZona.getId(),
             EspacioEstado.OCUPADO);
 
@@ -151,7 +153,7 @@ public class ZonaServicioImpl implements ZonaServicio {
                 "No se puede desactivar la zona porque tiene espacios ocupados");
         }
 
-        List<Espacio> espacios = repositorioEspacio.findByZonaId(objZona.getId());
+        List<Espacio> espacios = repositorioEspacio.findByZonaIdAndEliminadoFalse(objZona.getId());
 
         espacios.forEach(espacio -> {
             espacio.setActivo(false);

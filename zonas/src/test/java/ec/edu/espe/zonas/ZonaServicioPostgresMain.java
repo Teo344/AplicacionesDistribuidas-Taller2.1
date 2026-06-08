@@ -1,5 +1,7 @@
 package ec.edu.espe.zonas;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 import org.springframework.boot.WebApplicationType;
@@ -14,17 +16,16 @@ import ec.edu.espe.zonas.dtos.ZonaRespondeDto;
 import ec.edu.espe.zonas.entidades.EspacioEstado;
 import ec.edu.espe.zonas.entidades.TipoEspacio;
 import ec.edu.espe.zonas.entidades.TipoZona;
-import ec.edu.espe.zonas.services.impl.EspacioServicioImpl;
-import ec.edu.espe.zonas.services.impl.ZonaServicioImpl;
+import ec.edu.espe.zonas.services.EspacioServicio;
+import ec.edu.espe.zonas.services.ZonaServicio;
 
-public class ZonaServicioPruebaMain {
+public class ZonaServicioPostgresMain {
 
     public static void main(String[] args) {
         System.setProperty("org.springframework.boot.logging.LoggingSystem", "none");
 
         try (ConfigurableApplicationContext context = new SpringApplicationBuilder(ZonasApplication.class)
                 .web(WebApplicationType.NONE)
-                .profiles("local")
                 .properties(
                         "spring.main.banner-mode=off",
                         "debug=false",
@@ -34,86 +35,77 @@ public class ZonaServicioPruebaMain {
                         "logging.level.com.zaxxer.hikari=ERROR")
                 .run(args)) {
 
-            ZonaServicioImpl zonaServicio = context.getBean(ZonaServicioImpl.class);
-            EspacioServicioImpl espacioServicio = context.getBean(EspacioServicioImpl.class);
+            ZonaServicio zonaServicio = context.getBean(ZonaServicio.class);
+            EspacioServicio espacioServicio = context.getBean(EspacioServicio.class);
+            String sufijo = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HHmmss"));
 
             imprimirTitulo();
 
-            imprimirSeccion("1. Crear zona con capacidad limitada");
-            ZonaRequestDto request = ZonaRequestDto.builder()
-                    .nombre("Zona Norte Demo")
-                    .descripcion("Zona regulada del bloque norte")
-                    .tipo(TipoZona.VIP)
+            imprimirSeccion("1. Crear zona en PostgreSQL");
+            ZonaRespondeDto zona = zonaServicio.crearZona(ZonaRequestDto.builder()
+                    .nombre("Zona PG " + sufijo)
+                    .descripcion("Zona de prueba conectada a PostgreSQL")
+                    .tipo(TipoZona.REGULAR)
                     .capacidad(2)
-                    .build();
-
-            ZonaRespondeDto zona = zonaServicio.crearZona(request);
+                    .build());
             imprimirZona(zona);
 
-            imprimirSeccion("2. Crear espacios dentro de la capacidad");
+            imprimirSeccion("2. Crear espacios dentro de la zona");
             EspacioRespondeDto espacioUno = espacioServicio.crearEspacio(EspacioRequestDto.builder()
                     .idZona(zona.getIdZona())
-                    .codigo("ESP-001")
-                    .descripcion("Primer espacio")
+                    .codigo("PG-" + sufijo + "A")
+                    .descripcion("Espacio PostgreSQL A")
                     .tipo(TipoEspacio.AUTO)
                     .estado(EspacioEstado.DISPONIBLE)
                     .build());
 
             EspacioRespondeDto espacioDos = espacioServicio.crearEspacio(EspacioRequestDto.builder()
                     .idZona(zona.getIdZona())
-                    .codigo("ESP-002")
-                    .descripcion("Segundo espacio")
+                    .codigo("PG-" + sufijo + "B")
+                    .descripcion("Espacio PostgreSQL B")
                     .tipo(TipoEspacio.MOTO)
                     .estado(EspacioEstado.DISPONIBLE)
                     .build());
-
             imprimirEspacios(List.of(espacioUno, espacioDos));
 
-            imprimirSeccion("3. Verificar zona activa y espacios asociados");
-            imprimirResultado("Zona creada", "La zona nace activa y permite crear espacios");
-            imprimirEspacios(espacioServicio.obtenerEspacioPorZona(zona.getIdZona(), null));
-
-            imprimirSeccion("4. Validar capacidad maxima");
-            ejecutarCasoEsperado("Crear espacio superando capacidad", () -> espacioServicio.crearEspacio(EspacioRequestDto.builder()
+            imprimirSeccion("3. Validar limite de capacidad");
+            ejecutarCasoEsperado("Crear tercer espacio", () -> espacioServicio.crearEspacio(EspacioRequestDto.builder()
                     .idZona(zona.getIdZona())
-                    .codigo("ESP-003")
-                    .descripcion("Tercer espacio")
-                    .tipo(TipoEspacio.AUTO)
+                    .codigo("PG-" + sufijo + "C")
+                    .descripcion("Espacio PostgreSQL C")
+                    .tipo(TipoEspacio.BUSETA)
                     .estado(EspacioEstado.DISPONIBLE)
                     .build()));
 
-            imprimirSeccion("5. Cambiar un espacio a OCUPADO");
+            imprimirSeccion("4. Cambiar estado de espacio a OCUPADO");
             espacioUno = espacioServicio.cambiarEstado(espacioUno.getId(), EspacioEstado.OCUPADO);
             imprimirEspacios(List.of(espacioUno));
 
-            imprimirSeccion("6. Intentar desactivar zona con espacio ocupado");
-            ejecutarCasoEsperado("Desactivar zona con espacio ocupado", () -> zonaServicio.activarZona(zona.getIdZona()));
+            imprimirSeccion("5. Validar bloqueo al desactivar zona con espacio ocupado");
+            ejecutarCasoEsperado("Desactivar zona ocupada", () -> zonaServicio.activarZona(zona.getIdZona()));
 
-            imprimirSeccion("7. Liberar espacio ocupado");
+            imprimirSeccion("6. Liberar espacio y desactivar zona");
             espacioUno = espacioServicio.cambiarEstado(espacioUno.getId(), EspacioEstado.DISPONIBLE);
-            imprimirEspacios(List.of(espacioUno));
-
-            imprimirSeccion("8. Desactivar zona sin espacios ocupados");
             zonaServicio.activarZona(zona.getIdZona());
-            imprimirResultado("Zona desactivada", "Todos los espacios quedan con activo=false");
+            imprimirResultado("Zona desactivada", "Los espacios asociados quedan con activo=false");
             imprimirEspacios(espacioServicio.obtenerEspacioPorZona(zona.getIdZona(), null));
 
-            imprimirSeccion("9. Activar zona nuevamente");
+            imprimirSeccion("7. Activar zona nuevamente");
             zonaServicio.activarZona(zona.getIdZona());
-            imprimirResultado("Zona activada", "Todos los espacios quedan activos y DISPONIBLES");
+            imprimirResultado("Zona activada", "Los espacios vuelven a activo=true y estado DISPONIBLE");
             imprimirEspacios(espacioServicio.obtenerEspacioPorZona(zona.getIdZona(), null));
 
-            imprimirSeccion("10. Borrado logico de un espacio");
+            imprimirSeccion("8. Borrado logico de espacio");
             espacioServicio.eliminarEspacio(espacioDos.getId());
-            imprimirResultado("Espacio eliminado", "ESP-002 queda eliminado logicamente y no aparece en listados normales");
+            imprimirResultado("Espacio eliminado", "El registro queda marcado como eliminado y no aparece en listados normales");
             imprimirEspacios(espacioServicio.obtenerEspacioPorZona(zona.getIdZona(), null));
 
-            imprimirSeccion("11. Validar que un espacio eliminado no se pueda modificar");
+            imprimirSeccion("9. Validar espacio eliminado");
             ejecutarCasoEsperado("Cambiar estado de espacio eliminado",
                     () -> espacioServicio.cambiarEstado(espacioDos.getId(), EspacioEstado.MANTENIMIENTO));
 
-            imprimirSeccion("Fin de pruebas");
-            System.out.println("Todos los escenarios principales fueron ejecutados.");
+            imprimirSeccion("Fin de pruebas PostgreSQL");
+            System.out.println("Pruebas ejecutadas contra la base configurada en application.yaml.");
         }
     }
 
@@ -129,8 +121,8 @@ public class ZonaServicioPruebaMain {
     private static void imprimirTitulo() {
         System.out.println();
         System.out.println("============================================================");
-        System.out.println(" PRUEBA LOCAL DE ZONAS Y ESPACIOS");
-        System.out.println(" Base de datos: H2 en memoria | Perfil: local");
+        System.out.println(" PRUEBA DE INTEGRACION DE ZONAS Y ESPACIOS");
+        System.out.println(" Base de datos: PostgreSQL | Configuracion: application.yaml");
         System.out.println("============================================================");
     }
 
@@ -142,22 +134,24 @@ public class ZonaServicioPruebaMain {
     }
 
     private static void imprimirZona(ZonaRespondeDto zona) {
-        System.out.printf("%-12s %-20s %-12s %-10s %-10s%n", "ID", "NOMBRE", "CODIGO", "TIPO", "CAPACIDAD");
+        System.out.printf("%-12s %-20s %-12s %-10s %-10s %-8s%n",
+                "ID", "NOMBRE", "CODIGO", "TIPO", "CAPACIDAD", "ESTADO");
         System.out.println("--------------------------------------------------------------------------------");
-        System.out.printf("%-12s %-20s %-12s %-10s %-10d%n",
+        System.out.printf("%-12s %-20s %-12s %-10s %-10d %-8d%n",
                 resumirId(zona.getIdZona().toString()),
                 zona.getNombre(),
                 zona.getCodigo(),
                 zona.getTipo(),
-                zona.getCapacidad());
+                zona.getCapacidad(),
+                zona.getEstado());
     }
 
     private static void imprimirEspacios(List<EspacioRespondeDto> espacios) {
-        System.out.printf("%-12s %-10s %-10s %-14s %-8s %-12s%n",
+        System.out.printf("%-12s %-12s %-10s %-14s %-8s %-12s%n",
                 "ID", "CODIGO", "TIPO", "ESTADO", "ACTIVO", "ZONA");
         System.out.println("--------------------------------------------------------------------------------");
 
-        espacios.forEach(espacio -> System.out.printf("%-12s %-10s %-10s %-14s %-8s %-12s%n",
+        espacios.forEach(espacio -> System.out.printf("%-12s %-12s %-10s %-14s %-8s %-12s%n",
                 resumirId(espacio.getId().toString()),
                 espacio.getCodigo(),
                 espacio.getTipo(),
@@ -167,7 +161,7 @@ public class ZonaServicioPruebaMain {
     }
 
     private static void imprimirResultado(String caso, String resultado) {
-        System.out.printf("%-40s -> %s%n", caso, resultado);
+        System.out.printf("%-42s -> %s%n", caso, resultado);
     }
 
     private static String resumirId(String id) {
